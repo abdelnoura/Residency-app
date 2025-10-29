@@ -1,0 +1,11 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run Evidence API",
+      "type": "shell",
+      "command": "bash evidence_api/run_api.sh",
+      "problemMatcher": []
+    }
+  ]
+}

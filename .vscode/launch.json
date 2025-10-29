@@ -1,0 +1,12 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Evidence API (uvicorn)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/evidence_api/run_api.sh",
+      "console": "integratedTerminal"
+    }
+  ]
+}

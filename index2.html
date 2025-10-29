@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Resident Evidence Deck — Inline Evidence + API</title>
+<style>
+  :root{--bg:#0e0f10;--surface:#141516;--muted:#a7afb9;--text:#f1f4f7;--espresso:#3b2a22;--moss:#3a5d3b;--marigold:#ffb020;--border:#25272b;--radius:16px;--shadow:0 10px 30px rgba(0,0,0,.35)}
+  *{box-sizing:border-box} html,body{height:100%}
+  body{margin:0;background:radial-gradient(1000px 600px at 10% -20%, rgba(59,42,34,.18), transparent 60%),radial-gradient(1000px 600px at 90% -10%, rgba(58,93,59,.10), transparent 60%),linear-gradient(180deg,#0e0f10,#0b0c0d 50%,#0e0f10);color:var(--text);font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  a{color:var(--marigold);text-decoration:none} a:hover{text-decoration:underline}
+  .shell{max-width:1200px;margin:0 auto;padding:18px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .nav{display:flex;gap:12px;align-items:center;justify-content:space-between;position:sticky;top:0;padding:12px 0;backdrop-filter:blur(8px);z-index:20}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700}
+  .logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--espresso),#2a201b);display:grid;place-items:center;color:#fff;font-weight:900;box-shadow:var(--shadow)}
+  .tabs{display:flex;gap:8px;flex-wrap:wrap}
+  .tab{padding:8px 12px;border:1px solid var(--border);border-radius:999px;background:#141516;color:#e9edf3;cursor:pointer}
+  .tab.active{outline:2px solid var(--marigold);background:#1a1b1d}
+  .btn{appearance:none;border:1px solid var(--border);background:#171819;color:#f1f4f7;padding:10px 14px;border-radius:12px;cursor:pointer}
+  .btn:hover{background:#1d1f21}
+  .btn.brand{border-color:#4b362b;background:#2a201b}
+  .btn.acc{border-color:#2e4430;background:#172218}
+  .search{display:flex;gap:8px;align-items:center;flex:1;max-width:520px}
+  .search input{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:#101214;color:#f1f4f7;outline:none}
+  .panes{margin-top:12px}.pane{display:none}.pane.active{display:block}
+  .deck{display:grid;gap:16px;grid-template-columns:300px 1fr}
+  .sidebar{padding:14px;position:sticky;top:72px;align-self:start;max-height:calc(100vh - 100px);overflow:auto}
+  .mini{font-size:12px;color:var(--muted)}
+  .list{display:grid;gap:8px}
+  .cond{padding:10px 12px;border:1px solid var(--border);border-radius:12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:#121314}
+  .cond:hover{background:#16181a}.cond.active{outline:2px solid var(--moss);background:#151a16}
+  .main{display:grid;gap:16px}
+  .hero{padding:16px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .title{font-size:20px;font-weight:700}
+  .grid{display:grid;gap:16px;grid-template-columns:1.15fr .85fr}
+  .section{padding:16px}.section h3{margin:0 0 10px 0;font-size:15px;color:#e8ecf4}
+  .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid var(--border);background:#1b1c1e}
+  ul{margin:8px 0 0 18px;padding:0}
+  .evi-line{margin:6px 0}
+  .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border:1px solid var(--border);border-radius:999px;background:#15171a;font-size:12px}
+  .calc-chips{display:flex;gap:8px;flex-wrap:wrap}
+  .calc-chip{padding:8px 10px;border:1px solid var(--border);border-radius:999px;background:#15171a;cursor:pointer;font-size:13px}
+  .calc-chip.active{outline:2px solid var(--marigold);background:#191b1f}
+  .fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}
+  .field{display:grid;gap:6px}.field label{font-size:13px;color:#d5dbe3}
+  .field input,.field select{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:#101316;color:#f1f4f7}
+  .result{margin-top:12px;padding:12px;border-radius:12px;border:1px dashed var(--border);background:#101214}
+  .score{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid var(--border)}
+  .good{color:#7fe38e;background:#0f1a13;border-color:#214a2b}
+  .warn{color:#ffd27e;background:#1a150d;border-color:#4a3f21}
+  .bad{color:#ff8a8a;background:#1e0f10;border-color:#4a2121}
+  textarea.notes{width:100%;min-height:120px;resize:vertical;padding:12px;border-radius:12px;border:1px solid var(--border);background:#0f1215;color:#f1f4f7;outline:none}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  .input{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:#101214;color:#f1f4f7}
+  .no-print{display:block}.print-only{display:none}
+  @media print{.no-print{display:none!important}.print-only{display:block!important}body{background:#fff;color:#111}.print-card{border:1px solid #ddd;padding:8px;border-radius:8px;margin-bottom:6px}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="nav card">
+    <div class="brand">
+      <div class="logo">ED</div><div>Resident Evidence Deck</div>
+      <span class="pill" style="margin-left:6px;border-color:#4b362b;background:#221a16;color:#e9d8cf">MVP • read-only evidence</span>
+    </div>
+    <div class="search"><input id="search" placeholder="Search conditions (e.g., pneumonia, PE, ACS)…" /></div>
+    <div class="tabs">
+      <button class="tab active" data-tab="deck">Deck</button>
+      <button class="tab" data-tab="bookmarks">Bookmarks</button>
+      <button class="tab" data-tab="extractor">Extractor</button>
+    </div>
+    <div class="row"><button class="btn acc" id="printBtn">One-Pager / Print</button></div>
+  </div>
+
+  <div class="panes">
+    <!-- ======= DECK ======= -->
+    <div class="pane active" id="pane-deck">
+      <div class="deck">
+        <aside class="card sidebar">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
+            <div>
+              <div class="mini">Conditions</div>
+              <div class="mini" style="color:#89a48a">Evidence locked • only Notes editable</div>
+            </div>
+            <button class="btn" id="resetBtn">Reset</button>
+          </div>
+          <div id="condList" class="list"></div>
+        </aside>
+
+        <main class="main">
+          <div class="card hero">
+            <div class="title" id="condTitle">Select a condition</div>
+            <div class="row">
+              <button class="btn" id="bookmarkBtn">★ Bookmark</button>
+              <span class="pill mini" id="lastUpdated">Local bundle + saved extractions</span>
+            </div>
+          </div>
+
+          <div class="grid">
+            <section class="card section">
+              <h3>Evidence (Inline, Linked)</h3>
+              <div id="contentSections"></div>
+            </section>
+
+            <section class="card section">
+              <h3>Risk / Decision Tools</h3>
+              <div class="calc-chips" id="calcChips"></div>
+              <div id="calcForm" class="result mini" style="margin-top:8px">Pick a calculator</div>
+              <div style="height:1px;background:linear-gradient(90deg,transparent,#2a2f33,transparent);margin:16px 0"></div>
+              <h3>Personal Notes (only editable area)</h3>
+              <textarea class="notes" id="notesBox" placeholder="Add local pearls, order sets, service numbers…"></textarea>
+              <div class="mini" style="margin-top:6px">Autosaves per condition • does not modify evidence.</div>
+            </section>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <!-- ======= BOOKMARKS ======= -->
+    <div class="pane" id="pane-bookmarks">
+      <div class="card section">
+        <h3>Bookmarked Conditions</h3>
+        <div id="bmConds" class="row"></div>
+      </div>
+      <div class="card section" style="margin-top:16px">
+        <h3>Saved Extractions</h3>
+        <div id="bmExtracts" class="row"></div>
+      </div>
+    </div>
+
+    <!-- ======= EXTRACTOR (API-powered) ======= -->
+    <div class="pane" id="pane-extractor">
+      <div class="card section">
+        <h3>Evidence Extractor (from DOI / PMID)</h3>
+        <p class="mini" style="color:#a7afb9;margin-top:0">
+          Choose a condition + section, enter a DOI or PubMed ID, then click <b>Import from Source</b>.
+          The bullet will appear inline on the Deck with metrics and a link to the study.
+        </p>
+        <div class="row" style="margin-bottom:10px">
+          <select class="input" id="exCond"></select>
+          <select class="input" id="exSection"></select>
+        </div>
+        <div class="row">
+          <input class="input" id="exDOI" placeholder="DOI (e.g., 10.1056/NEJMxxxxxx)" />
+          <input class="input" id="exPMID" placeholder="PMID (e.g., 31452104)" />
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button class="btn brand" id="exImport">Import from Source</button>
+        </div>
+
+        <div style="height:1px;background:linear-gradient(90deg,transparent,#2a2f33,transparent);margin:16px 0"></div>
+
+        <h3>Manual Add (optional)</h3>
+        <textarea class="notes" id="exStatement" placeholder='Statement (e.g., "Dyspnea has a PPV of 72% for PE in ED patients.")'></textarea>
+        <div class="row" style="margin-top:8px">
+          <input class="input" id="exPPV" placeholder="PPV %" />
+          <input class="input" id="exSens" placeholder="Sensitivity %" />
+          <input class="input" id="exSpec" placeholder="Specificity %" />
+          <input class="input" id="exLRp" placeholder="LR+" />
+          <input class="input" id="exLRn" placeholder="LR−" />
+          <input class="input" id="exNNT" placeholder="NNT" />
+        </div>
+        <div class="row" style="margin-top:8px">
+          <input class="input" id="exSourceLabel" placeholder="Source label (e.g., ACC/AHA 2024; Smith 2023)" />
+          <input class="input" id="exURL" placeholder="Source URL (PubMed/DOI/guideline link)" />
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button class="btn" id="exSave">Add Manually to Deck</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRINT -->
+  <section id="onePager" class="print-only shell" style="padding-top:0">
+    <h2 id="opTitle" style="margin:8px 0 6px 0"></h2>
+    <div class="mini" style="color:#555;margin-bottom:8px">Auto-compiled one-pager (evidence + your notes)</div>
+    <div id="opCols" style="display:grid;grid-template-columns:1fr 1fr;gap:14px"></div>
+  </section>
+
+  <div class="no-print" style="position:sticky;bottom:8px">
+    <div class="card" style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:10px 12px;">
+      <div>One-Pager is ready for the current condition</div>
+      <div class="row">
+        <button class="btn" onclick="buildOnePager(); document.getElementById('onePager').scrollIntoView({behavior:'smooth'});">Preview</button>
+        <button class="btn" onclick="buildOnePager(); window.print();">Print / Save PDF</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===========================
+   FRONTEND LOGIC (copy-paste)
+   =========================== */
+const API_BASE = "http://localhost:8000";
+
+const CONDITIONS = ["Pneumonia","Pulmonary embolism","Acute coronary syndrome (ACS)","Heart failure","Acute kidney injury","Chronic kidney disease / ESRD","Stroke (ischemic)","Skin & soft tissue infections","Pancreatitis","Alcohol withdrawal","GI bleed (upper/lower)","Heart arrhythmias (AF, SVT, VT)","Asthma management","COPD exacerbation"];
+const SECTION_TITLES = ["Presenting Symptoms","Diagnostic Criteria","Initial Workup","Management (Initial)","Ongoing Management / Follow-up","Complications","Adverse Effects (Tx)","Clinical Pearls"];
+
+const EVIDENCE_BASE = {
+  "Pulmonary embolism": {
+    "Presenting Symptoms": [
+      { statement:"Pleuritic chest pain and dyspnea are common in PE.", metrics:{}, source:{label:"Overview review", url:"https://www.ncbi.nlm.nih.gov/pubmed/"} }
+    ],
+    "Diagnostic Criteria": [
+      { statement:"Use pretest probability (Wells) to triage D-dimer vs imaging.", metrics:{}, source:{label:"Diagnostic pathway", url:"https://www.ncbi.nlm.nih.gov/pubmed/"} }
+    ]
+  },
+  "Pneumonia": {
+    "Diagnostic Criteria":[
+      { statement:"Symptoms + new infiltrate on chest imaging define pneumonia.", metrics:{}, source:{label:"General definition", url:"https://www.ncbi.nlm.nih.gov/pubmed/"} }
+    ]
+  }
+};
+// ensure all sections exist
+for (const c of CONDITIONS){ if(!EVIDENCE_BASE[c]) EVIDENCE_BASE[c]={}; for(const s of SECTION_TITLES){ if(!EVIDENCE_BASE[c][s]) EVIDENCE_BASE[c][s]=[]; } }
+
+const LS_NOTES="ed_notes_v1", LS_BM_COND="ed_bm_conditions_v1", LS_EXTRAS="ed_saved_extracts_v2";
+const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
+const condList=$("#condList"), condTitle=$("#condTitle"), lastUpdated=$("#lastUpdated"), contentSections=$("#contentSections");
+const calcChips=$("#calcChips"), calcForm=$("#calcForm"), notesBox=$("#notesBox"), search=$("#search");
+let current=localStorage.getItem("ed_current")||CONDITIONS[0];
+
+function getNotes(){try{return JSON.parse(localStorage.getItem(LS_NOTES)||"{}")}catch{return{}}}
+function setNotes(v){localStorage.setItem(LS_NOTES,JSON.stringify(v))}
+function getBmConds(){try{return JSON.parse(localStorage.getItem(LS_BM_COND)||"[]")}catch{return[]}}
+function setBmConds(v){localStorage.setItem(LS_BM_COND,JSON.stringify(v))}
+function getExtras(){try{return JSON.parse(localStorage.getItem(LS_EXTRAS)||"[]")}catch{return[]}}
+function setExtras(v){localStorage.setItem(LS_EXTRAS,JSON.stringify(v))}
+
+function renderSidebar(filter=""){condList.innerHTML="";CONDITIONS.filter(c=>c.toLowerCase().includes(filter)).forEach(c=>{const el=document.createElement("div");el.className="cond"+(c===current?" active":"");el.innerHTML=`<div>${c}</div><div class="mini">▶</div>`;el.onclick=()=>{current=c;localStorage.setItem("ed_current",c);renderAll();};condList.appendChild(el);});}
+
+function metricChip(label,value){if(value===null||value===undefined||value==="")return"";return `<span class="chip" title="${label}">${label}: ${String(value)}</span>`;}
+function renderEvidenceLine(line){
+  const m=line.metrics||{}; const chips=[metricChip("PPV", m.ppv?`${m.ppv}%`:null),metricChip("Sensitivity", m.sens?`${m.sens}%`:null),metricChip("Specificity", m.spec?`${m.spec}%`:null),metricChip("LR+", m.lrp),metricChip("LR−", m.lrn),metricChip("NNT", m.nnt)].filter(Boolean).join(" ");
+  const src=line.source&&line.source.url?` <a href="${line.source.url}" target="_blank" rel="noopener">(study)</a>`:(line.source&&line.source.label?` <span class="mini">(${escapeHtml(line.source.label)})</span>`:"");
+  return `<li class="evi-line">${escapeHtml(line.statement)} ${chips?`<span>${chips}</span>`:""}${src}</li>`;
+}
+function mergedEvidence(condition){
+  const base=EVIDENCE_BASE[condition]||{}; const extras=getExtras().filter(x=>x.condition===condition);
+  const merged={}; for(const s of SECTION_TITLES){ merged[s]=(base[s]||[]).slice(); for(const x of extras.filter(e=>e.section===s)){ merged[s].push({statement:x.statement,metrics:x.metrics,source:x.source}); } }
+  return merged;
+}
+function renderContent(){
+  condTitle.textContent=current; lastUpdated.textContent="Read-only bundle + your saved extractions"; contentSections.innerHTML="";
+  const data=mergedEvidence(current);
+  for(const sec of SECTION_TITLES){
+    const lines=data[sec]||[]; const block=document.createElement("div"); block.style.marginBottom="10px";
+    block.innerHTML=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><strong>${sec}</strong><span class="pill mini">${lines.length||"—"}</span></div>${lines.length?`<ul>${lines.map(renderEvidenceLine).join("")}</ul>`:`<div class="mini" style="color:#a7afb9">No items yet.</div>`}`;
+    contentSections.appendChild(block);
+  }
+  const notes=getNotes()[current]||""; notesBox.value=notes;
+}
+
+/* --- Calculators (same as before; shortened for brevity) --- */
+const CALCS=[{id:"curb65",name:"CURB-65 (Pneumonia)",for:["Pneumonia"],fields:[{id:"confusion",label:"New confusion?",type:"bool"},{id:"bun",label:"BUN >19 mg/dL",type:"bool"},{id:"rr",label:"RR ≥30",type:"bool"},{id:"hypo",label:"SBP <90 or DBP ≤60",type:"bool"},{id:"age65",label:"Age ≥65",type:"bool"}],compute:(v)=>{let s=0,items=[];if(v.confusion){s++;items.push("Confusion")}if(v.bun){s++;items.push("BUN>19")}if(v.rr){s++;items.push("RR≥30")}if(v.hypo){s++;items.push("Hypotension")}if(v.age65){s++;items.push("Age≥65")}const t=s<=1?"Low (outpt likely)":s===2?"Moderate (consider obs)":"High (admit/assess ICU)";const b=s<=1?"good":s===2?"warn":"bad";return{score:s,details:items,interpretation:t,badge:b};}}, {id:"wells",name:"Wells (PE)",for:["Pulmonary embolism"],fields:[{id:"dvt",label:"Clinical signs of DVT (+3)",type:"bool",pts:3},{id:"likely",label:"PE more likely than alternatives (+3)",type:"bool",pts:3},{id:"hr",label:"HR >100 (+1.5)",type:"bool",pts:1.5},{id:"imm",label:"Immobilization ≥3d or surgery ≤4w (+1.5)",type:"bool",pts:1.5},{id:"prev",label:"Prior DVT/PE (+1.5)",type:"bool",pts:1.5},{id:"hemp",label:"Hemoptysis (+1)",type:"bool",pts:1},{id:"ca",label:"Cancer (+1)",type:"bool",pts:1}],compute:(v,d)=>{let s=0,items=[];for(const f of d.fields){if(v[f.id]){s+=f.pts;items.push(f.label)}}const tier=s>6?"High":s>2?"Moderate":"Low";const next=s>=4?"PE likely → image":"PE unlikely → consider PERC/D-dimer";const b=s>=4?"bad":"warn";return{score:s,details:items,interpretation:`${tier} • ${next}`,badge:b};}}, {id:"timi",name:"TIMI (UA/NSTEMI)",for:["Acute coronary syndrome (ACS)"],fields:[{id:"age65",label:"Age ≥65",type:"bool",pts:1},{id:"rf3",label:"≥3 CAD RFs",type:"bool",pts:1},{id:"stenosis",label:"Known CAD ≥50%",type:"bool",pts:1},{id:"asa7",label:"ASA in last 7d",type:"bool",pts:1},{id:"episodes",label:"≥2 angina/24h",type:"bool",pts:1},{id:"stdev",label:"ST deviation ≥0.5mm",type:"bool",pts:1},{id:"markers",label:"Elevated markers",type:"bool",pts:1}],compute:(v,d)=>{let s=0;for(const f of d.fields){if(v[f.id])s+=f.pts}const r=s<=2?"Low":s<=4?"Intermediate":"High";const b=s<=2?"good":s<=4?"warn":"bad";return{score:s,details:[],interpretation:`${r} risk`,badge:b};}}];
+const CALCS_BY_COND={"Pneumonia":["curb65"],"Pulmonary embolism":["wells"],"Acute coronary syndrome (ACS)": ["timi"]};
+
+function renderCalcs(){calcChips.innerHTML="";calcForm.innerHTML=`<div class="mini">Pick a calculator</div>`;const ids=CALCS_BY_COND[current]||[];if(ids.length===0){calcChips.innerHTML=`<span class="mini" style="color:#a7afb9">No calculators mapped.</span>`;return;}ids.forEach(id=>{const def=CALCS.find(c=>c.id===id);const chip=document.createElement("button");chip.className="calc-chip";chip.textContent=def.name;chip.onclick=()=>{$$(".calc-chip").forEach(x=>x.classList.remove("active"));chip.classList.add("active");renderCalcForm(def);};calcChips.appendChild(chip);});}
+function renderCalcForm(def){calcForm.innerHTML="";const fields=document.createElement("div");fields.className="fields";def.fields.forEach(f=>{const wrap=document.createElement("div");wrap.className="field";wrap.innerHTML=`<label>${f.label}</label>`;let input;if(f.type==="bool"){input=document.createElement("select");input.innerHTML=`<option value="false">No</option><option value="true">Yes</option>`}else{input=document.createElement("input");input.type="number";input.step=f.step||"1"}wrap.appendChild(input);fields.appendChild(wrap)});const out=document.createElement("div");out.className="result";const reset=document.createElement("button");reset.className="btn";reset.textContent="Clear";reset.onclick=()=>{fields.querySelectorAll("select,input").forEach(el=>{if(el.tagName==="SELECT"){el.selectedIndex=0}else{el.value=""}});compute();};calcForm.appendChild(fields);calcForm.appendChild(reset);calcForm.appendChild(out);function compute(){const vals={};fields.querySelectorAll(".field").forEach((wrap,i)=>{const f=def.fields[i];const el=wrap.querySelector("select,input");if(f.type==="bool"){vals[f.id]=(el.value==="true")}else{vals[f.id]=(el.value===""?null:Number(el.value))}});const res=def.compute(vals,def);out.innerHTML=`<div><strong>${def.name}</strong></div><div style="margin-top:6px">Score: <span class="score ${res.badge||""}">${res.score}</span></div>${res.details?.length?`<div class="mini" style="margin-top:6px">${res.details.join(" • ")}</div>`:""}<div style="margin-top:10px">${res.interpretation||""}</div><div class="mini" style="margin-top:6px;color:#a7afb9">Confirm with current guideline; adjust for local policy.</div>`;}compute();}
+
+notesBox.addEventListener("input",()=>{const all=getNotes();all[current]=notesBox.value;setNotes(all);});
+$("#bookmarkBtn").addEventListener("click",()=>{const list=getBmConds();if(!list.includes(current)){list.push(current);setBmConds(list);}alert(`Saved “${current}” to Bookmarks`);});
+
+function renderBookmarksPane(){const cWrap=$("#bmConds"),eWrap=$("#bmExtracts");cWrap.innerHTML="";eWrap.innerHTML="";const conds=getBmConds();if(conds.length===0)cWrap.innerHTML=`<span class="mini" style="color:#a7afb9">No condition bookmarks yet.</span>`;conds.forEach(c=>{const pill=document.createElement("div");pill.className="pillItem";pill.innerHTML=`🩺 ${c} <button class="btn" onclick="openCond('${c}')">Open</button> <button class="btn" onclick="removeCond('${c}',this)">Remove</button>`;cWrap.appendChild(pill);});const ex=getExtras();if(ex.length===0)eWrap.innerHTML=`<span class="mini" style="color:#a7afb9">No saved extractions yet.</span>`;ex.forEach(x=>{const pill=document.createElement("div");pill.className="pillItem";pill.innerHTML=`📄 ${escapeHtml(x.statement.slice(0,60))}… <span class="mini" style="color:#a7afb9">${escapeHtml(x.source?.label || "")}</span> <button class="btn" onclick="openCond('${x.condition}')">Open in Deck</button> <button class="btn" onclick="removeExtract('${x.key}',this)">Remove</button>`;eWrap.appendChild(pill);});}
+window.openCond=c=>{current=c;localStorage.setItem("ed_current",c);switchTab("deck");renderAll();};
+window.removeCond=(c,btn)=>{const list=getBmConds().filter(x=>x!==c);setBmConds(list);btn.parentElement.remove();};
+window.removeExtract=(k,btn)=>{const list=getExtras().filter(x=>x.key!==k);setExtras(list);btn.parentElement.remove();renderAll();};
+
+function numOrNull(v){v=(v||"").trim();if(v==="")return null;const n=Number(v);return isNaN(n)?null:n;}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]));}
+function switchTab(name){$$(".tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===name));$$(".pane").forEach(p=>p.classList.toggle("active",p.id===`pane-${name}`));if(name==="bookmarks")renderBookmarksPane();}
+$$(".tab").forEach(t=>t.addEventListener("click",()=>switchTab(t.dataset.tab)));
+$("#resetBtn").addEventListener("click",()=>{if(confirm("Clear your Notes, Bookmarks and Saved Extractions? Evidence bundle remains.")){localStorage.removeItem(LS_NOTES);localStorage.removeItem(LS_BM_COND);localStorage.removeItem(LS_EXTRAS);renderAll();}});
+search.addEventListener("input",()=>renderSidebar(search.value.trim().toLowerCase()));
+function buildOnePager(){ $("#opTitle").textContent=`${current} — One-Pager`; const data=mergedEvidence(current); const left=["Presenting Symptoms","Diagnostic Criteria","Initial Workup","Management (Initial)"]; const right=["Ongoing Management / Follow-up","Complications","Adverse Effects (Tx)","Clinical Pearls","Your Notes"]; const makeCol=keys=>keys.map(k=>{let items="";if(k==="Your Notes"){const n=getNotes()[current]||"";items=n?n.split(/\n+/).map(x=>`<div class="print-card">${escapeHtml(x)}</div>`).join(""):`<div class="print-card">—</div>`;}else{const lines=data[k]||[];items=lines.length?`<ul>${lines.map(renderEvidenceLine).join("")}</ul>`:`<div class="print-card">—</div>`;}return `<div><h3 style="margin:0 0 6px 0">${k}</h3>${items}</div>`;}).join(""); $("#opCols").innerHTML=makeCol(left)+makeCol(right); }
+$("#printBtn").addEventListener("click",()=>{buildOnePager();window.print();});
+
+function populateExtractorPickers(){ $("#exCond").innerHTML=CONDITIONS.map(c=>`<option>${c}</option>`).join(""); $("#exSection").innerHTML=SECTION_TITLES.map(s=>`<option>${s}</option>`).join(""); }
+async function apiExtract(payload){ const qs=new URLSearchParams(payload).toString(); const res=await fetch(`${API_BASE}/extract?${qs}`); if(!res.ok) return {items:[]}; return await res.json(); }
+$("#exImport").addEventListener("click", async ()=>{
+  const condition=$("#exCond").value; const section=$("#exSection").value;
+  const doi=($("#exDOI").value||"").trim(); const pmid=($("#exPMID").value||"").trim();
+  if(!doi && !pmid){ alert("Enter a DOI or a PMID."); return; }
+  try{
+    const out=await apiExtract({condition, section, doi, pmid});
+    const items=out.items||[];
+    if(!items.length){ alert("Nothing found (try a different DOI/PMID)."); return; }
+    const prev=getExtras(); items.forEach(it=>prev.push({ key:`ex:${Date.now()}${Math.random()}`, ...it })); setExtras(prev);
+    alert("Imported! Check the Deck.");
+    renderAll();
+  }catch(e){ alert("Request failed. Make sure the API is running on http://localhost:8000"); }
+});
+
+$("#exSave").addEventListener("click",()=>{
+  const condition=$("#exCond").value; const section=$("#exSection").value;
+  const statement=$("#exStatement").value.trim(); const srcLabel=$("#exSourceLabel").value.trim(); const url=$("#exURL").value.trim();
+  if(!statement){alert("Add a statement.");return;} if(!url){alert("Add a source URL.");return;}
+  const payload={ key:`ex:${Date.now()}`, condition, section, statement, metrics:{ ppv:numOrNull($("#exPPV").value), sens:numOrNull($("#exSens").value), spec:numOrNull($("#exSpec").value), lrp:numOrNull($("#exLRp").value), lrn:numOrNull($("#exLRn").value), nnt:numOrNull($("#exNNT").value) }, source:{label:srcLabel||"study", url}, ts:Date.now() };
+  const list=getExtras(); list.push(payload); setExtras(list);
+  ["exStatement","exPPV","exSens","exSpec","exLRp","exLRn","exNNT","exSourceLabel","exURL"].forEach(id=>$("#"+id).value="");
+  alert("Added to Deck."); renderAll();
+});
+
+function renderAll(){ renderSidebar(search.value.trim().toLowerCase()); renderContent(); renderCalcs(); }
+populateExtractorPickers(); renderAll();
+</script>
+</body>
+</html>
