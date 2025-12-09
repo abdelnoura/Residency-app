@@ -33,15 +33,19 @@
   .main{display:grid;gap:16px}
   .hero{padding:16px;display:flex;align-items:center;justify-content:space-between;gap:8px}
   .title{font-size:20px;font-weight:700}
-  .grid{display:grid;gap:16px;grid-template-columns:1.15fr .85fr}
+  .grid{display:grid;gap:16px;grid-template-columns:1.15fr .85fr;align-items:start}
   .section{padding:16px}.section h3{margin:0 0 10px 0;font-size:15px;color:#e8ecf4}
   .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid var(--border);background:#1b1c1e}
+  .pill.subtle{background:#131517;color:#c6cdd6;border-style:dashed}
   ul{margin:8px 0 0 18px;padding:0}
   .evi-line{margin:6px 0}
   .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border:1px solid var(--border);border-radius:999px;background:#15171a;font-size:12px}
   .calc-chips{display:flex;gap:8px;flex-wrap:wrap}
   .calc-chip{padding:8px 10px;border:1px solid var(--border);border-radius:999px;background:#15171a;cursor:pointer;font-size:13px}
   .calc-chip.active{outline:2px solid var(--marigold);background:#191b1f}
+  .guideline{padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#121314;margin-bottom:8px}
+  .guideline-title{font-weight:700;margin:0 0 4px 0;font-size:14px}
+  .guideline-meta{display:flex;gap:8px;align-items:center;font-size:12px;color:#a7afb9;flex-wrap:wrap}
   .fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}
   .field{display:grid;gap:6px}.field label{font-size:13px;color:#d5dbe3}
   .field input,.field select{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:#101316;color:#f1f4f7}
@@ -98,6 +102,12 @@
           </div>
 
           <div class="grid">
+            <section class="card section" id="guidelineCard">
+              <h3 style="display:flex;align-items:center;gap:8px;margin:0 0 6px 0">Guideline Snapshots <span class="pill subtle">Auto-populated</span></h3>
+              <div class="mini" style="color:#a7afb9;margin-bottom:8px">Latest recommendations pulled from major societies for quick bedside reference.</div>
+              <div id="guidelineList"></div>
+            </section>
+
             <section class="card section">
               <h3>Evidence (Inline, Linked)</h3>
               <div id="contentSections"></div>
@@ -199,6 +209,56 @@ const API_BASE = "http://localhost:8000";
 const CONDITIONS = ["Pneumonia","Pulmonary embolism","Acute coronary syndrome (ACS)","Heart failure","Acute kidney injury","Chronic kidney disease / ESRD","Stroke (ischemic)","Skin & soft tissue infections","Pancreatitis","Alcohol withdrawal","GI bleed (upper/lower)","Heart arrhythmias (AF, SVT, VT)","Asthma management","COPD exacerbation"];
 const SECTION_TITLES = ["Presenting Symptoms","Diagnostic Criteria","Initial Workup","Management (Initial)","Ongoing Management / Follow-up","Complications","Adverse Effects (Tx)","Clinical Pearls"];
 
+// Anchor to major society guidelines (static for MVP; keep URLs up to date)
+const GUIDELINE_BASE = {
+  "Pneumonia": [
+    {org:"IDSA/ATS", year:2019, title:"Community-Acquired Pneumonia in Adults", url:"https://www.idsociety.org/practice-guideline/community-acquired-pneumonia-cap-in-adults/", recommendation:"IDSA/ATS 2019 — severity with CURB-65/PSI; amox + macrolide or doxy first-line; cover MRSA/PsA only with risk factors."},
+    {org:"CDC", year:2024, title:"Immunization schedule & pneumococcal vaccine guidance", url:"https://www.cdc.gov/vaccines/schedules/hcp/imz/adult.html", recommendation:"Ensure pneumococcal and influenza vaccination are current for prevention."},
+  ],
+  "Pulmonary embolism": [
+    {org:"CHEST", year:2021, title:"Antithrombotic Therapy for VTE Disease", url:"https://journal.chestnet.org/article/S0012-3692(20)31625-0/fulltext", recommendation:"CHEST 2021 — DOAC preferred over warfarin when eligible; minimum 3 months anticoagulation for provoked PE."},
+    {org:"ESC", year:2019, title:"ESC Guidelines for Acute Pulmonary Embolism", url:"https://academic.oup.com/eurheartj/article/41/4/543/5556136", recommendation:"Risk-stratify with PESI/sPESI; consider thrombolysis only for high-risk PE with shock."},
+  ],
+  "Acute coronary syndrome (ACS)": [
+    {org:"ACC/AHA", year:2025, title:"Acute Coronary Syndromes Guideline", url:"https://www.jacc.org/doi/10.1016/j.jacc.2024.11.009", recommendation:"ACC/AHA 2025 — dual antiplatelet therapy for 12 months post-PCI if no high bleeding risk; early invasive strategy for NSTEMI with high-risk features."},
+    {org:"ESC", year:2023, title:"ESC ACS Management", url:"https://academic.oup.com/eurheartj/article/45/2/123/7263732", recommendation:"High-sensitivity troponin 0/1h or 0/2h algorithms acceptable; radial access preferred for PCI."},
+  ],
+  "Acute kidney injury": [
+    {org:"KDIGO", year:2012, title:"KDIGO Clinical Practice Guideline for AKI", url:"https://kdigo.org/guidelines/acute-kidney-injury/", recommendation:"Use KDIGO staging (SCr & urine output); avoid nephrotoxins and optimize hemodynamics; consider early nephrology consult for stage 2–3."},
+  ],
+  "Heart failure": [
+    {org:"AHA/ACC/HFSA", year:2022, title:"Heart Failure Guideline", url:"https://www.ahajournals.org/doi/10.1161/CIR.0000000000001063", recommendation:"Start GDMT early (ARNI/ACEi/ARB, beta-blocker, MRA, SGLT2i) for HFrEF; loop diuretics for congestion."},
+  ],
+  "Chronic kidney disease / ESRD": [
+    {org:"KDIGO", year:2024, title:"KDIGO CKD Evaluation and Management", url:"https://kdigo.org/guidelines/ckd-evaluation-and-management/", recommendation:"Use eGFR + albuminuria for staging; SGLT2i for proteinuric CKD when eligible; avoid nephrotoxins and optimize BP."},
+  ],
+  "Stroke (ischemic)": [
+    {org:"AHA/ASA", year:2021, title:"Ischemic Stroke Early Management", url:"https://www.ahajournals.org/doi/10.1161/STR.0000000000000375", recommendation:"Door-to-needle ≤60 min for IV alteplase when eligible; perform mechanical thrombectomy for large vessel occlusion within recommended windows."},
+  ],
+  "Skin & soft tissue infections": [
+    {org:"IDSA", year:2014, title:"Skin and Soft Tissue Infection Guideline", url:"https://www.idsociety.org/practice-guideline/skin-and-soft-tissue-infections/", recommendation:"Mild cellulitis: oral beta-lactam; add MRSA coverage if risk factors; drain abscesses and culture when purulent."},
+  ],
+  "Pancreatitis": [
+    {org:"ACG", year:2022, title:"Management of Acute Pancreatitis", url:"https://journals.lww.com/ajg/Fulltext/2022/09000/ACG_Clinical_Guideline__Management_of_Acute.12.aspx", recommendation:"Aggressive isotonic fluid resuscitation in first 12–24h; early enteral nutrition; avoid routine antibiotics unless infected necrosis."},
+  ],
+  "Alcohol withdrawal": [
+    {org:"ASAM", year:2020, title:"Alcohol Withdrawal Management", url:"https://journals.lww.com/journaladdictionmedicine/Fulltext/2020/06000/The_ASAM_Clinical_Practice_Guideline_on_Alcohol.1.aspx", recommendation:"Symptom-triggered benzodiazepines via CIWA-Ar; thiamine before glucose in suspected deficiency; consider phenobarbital protocols for severe cases."},
+  ],
+  "GI bleed (upper/lower)": [
+    {org:"ACG", year:2021, title:"Upper GI and Ulcer Bleeding", url:"https://journals.lww.com/ajg/Fulltext/2021/08000/ACG_Clinical_Guideline__Upper_Gastrointestinal_and.16.aspx", recommendation:"Resuscitate and start high-dose IV PPI after endoscopy; perform early endoscopy (within 24h) for UGIB; hold anticoagulants/antiplatelets per risk."},
+  ],
+  "Heart arrhythmias (AF, SVT, VT)": [
+    {org:"ESC", year:2020, title:"Atrial Fibrillation Guideline", url:"https://academic.oup.com/eurheartj/article/42/5/373/5899003", recommendation:"Use CHA2DS2-VASc for stroke risk; DOACs preferred when anticoagulation indicated; rate- or rhythm-control based on symptoms and substrate."},
+    {org:"AHA/ACC/HRS", year:2015, title:"SVT Management", url:"https://www.ahajournals.org/doi/10.1161/CIR.0000000000000311", recommendation:"Vagal maneuvers then adenosine for stable AVNRT/AVRT; synchronized cardioversion if unstable."},
+  ],
+  "COPD exacerbation": [
+    {org:"GOLD", year:2024, title:"GOLD Report", url:"https://goldcopd.org/2024-gold-report-2/", recommendation:"Short-acting bronchodilators + systemic steroids (5–7d); antibiotics for increased sputum purulence/volume; consider NIV for hypercapnia."},
+  ],
+  "Asthma management": [
+    {org:"GINA", year:2024, title:"GINA Strategy Report", url:"https://ginasthma.org/gina-reports/", recommendation:"Use ICS-formoterol as needed for mild asthma; step-up with MART; systemic steroids for severe exacerbations."},
+  ],
+};
+
 const EVIDENCE_BASE = {
   "Pulmonary embolism": {
     "Presenting Symptoms": [
@@ -244,7 +304,7 @@ function mergedEvidence(condition){
   return merged;
 }
 function renderContent(){
-  condTitle.textContent=current; lastUpdated.textContent="Read-only bundle + your saved extractions"; contentSections.innerHTML="";
+  condTitle.textContent=current; lastUpdated.textContent="Guideline snapshots + evidence bundle + your saved extractions"; contentSections.innerHTML="";
   const data=mergedEvidence(current);
   for(const sec of SECTION_TITLES){
     const lines=data[sec]||[]; const block=document.createElement("div"); block.style.marginBottom="10px";
@@ -252,6 +312,24 @@ function renderContent(){
     contentSections.appendChild(block);
   }
   const notes=getNotes()[current]||""; notesBox.value=notes;
+}
+
+function renderGuidelines(){
+  const list=$("#guidelineList");
+  const items=GUIDELINE_BASE[current]||[];
+  if(!items.length){
+    list.innerHTML=`<div class="mini" style="color:#a7afb9">No linked guidelines yet. Add your own link in Notes or paste a DOI/PMID in the Extractor.</div>`;
+    return;
+  }
+  list.innerHTML=items.map(g=>{
+    const metaParts=[`<span class="pill">${escapeHtml(g.org)}</span>`];
+    if(g.year) metaParts.push(`<span class="pill subtle">Updated ${escapeHtml(g.year)}</span>`);
+    return `<div class="guideline">`+
+      `<div class="guideline-title">${escapeHtml(g.title)}</div>`+
+      `<div class="guideline-meta">${metaParts.join(" ")}<span>${escapeHtml(g.focus||"Guideline summary")}</span></div>`+
+      (g.recommendation?`<div style="margin-top:6px">${escapeHtml(g.recommendation)}</div>`:"")+`<div class="mini" style="margin-top:6px"><a href="${g.url}" target="_blank" rel="noopener">Open source</a>${g.note?` • ${escapeHtml(g.note)}`:""}</div>`+
+    `</div>`;
+  }).join("");
 }
 
 /* --- Calculators (same as before; shortened for brevity) --- */
@@ -304,7 +382,7 @@ $("#exSave").addEventListener("click",()=>{
   alert("Added to Deck."); renderAll();
 });
 
-function renderAll(){ renderSidebar(search.value.trim().toLowerCase()); renderContent(); renderCalcs(); }
+function renderAll(){ renderSidebar(search.value.trim().toLowerCase()); renderContent(); renderGuidelines(); renderCalcs(); }
 populateExtractorPickers(); renderAll();
 </script>
 </body>
